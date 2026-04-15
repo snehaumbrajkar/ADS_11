@@ -5,6 +5,10 @@ require('dotenv').config();
 
 const app = express();
 
+app.get("/", (req, res) => {
+  res.send("Backend is working 🚀");
+});
+
 app.use(cors());
 app.use(express.json());
 
@@ -14,17 +18,25 @@ const driver = neo4j.driver(
 );
 
 const testConnection = async () => {
-    const session = driver.session();
-    try {
-        await session.run('RETURN 1');
-        console.log('Neo4j connection successful');
-    } catch (error) {
-        console.error('Neo4j connection error:', error);
-    } finally {
-        await session.close();
-    }
-};
+    let retries = 5;
 
+    while (retries) {
+        const session = driver.session();
+        try {
+            await session.run('RETURN 1');
+            console.log('✅ Neo4j connected');
+            return;
+        } catch (error) {
+            console.log('⏳ Waiting for Neo4j...');
+            retries--;
+            await new Promise(res => setTimeout(res, 3000));
+        } finally {
+            await session.close();
+        }
+    }
+
+    console.error('❌ Could not connect to Neo4j');
+};
 testConnection();
 
 app.post('/api/check-citation', async (req, res) => {
@@ -183,7 +195,6 @@ app.post('/api/paper-details', async (req, res) => {
         await session.close();
     }
 });
-
 
 // Start the server
 const PORT = process.env.PORT || 3000;
